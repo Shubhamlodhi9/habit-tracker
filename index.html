@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ऑल-इन-वन हैबिट, पोमोडोरो और नोट्स डैशबोर्ड</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Noto Sans Devanagari', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .day-btn, .cal-cell { transition: all 0.18s ease; }
+    .day-btn:active, .cal-cell:active { transform: scale(0.93); }
+    .timer-display { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+  <div class="max-w-6xl mx-auto space-y-6">
+    
+    <!-- Header Section -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-lg gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
+          <span>🚀</span> पर्सनल प्रोडक्टिविटी और हैबिट हब
+          <span class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-1 rounded-full">ULTIMATE</span>
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">आदतें, साप्ताहिक स्ट्रीक, पोमोडोरो फ़ोकस टाइमर, दैनिक नोट्स और मासिक हीटमैप</p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <button onclick="exportToCSV()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-emerald-600/20 flex items-center gap-2">
+          📥 पूरी रिपोर्ट (CSV) डाउनलोड करें
+        </button>
+        <button onclick="resetCurrentWeek()" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium rounded-xl transition">
+          🔄 यह हफ़्ता रीसेट करें
+        </button>
+      </div>
+    </header>
+
+    <!-- Top Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl">
+        <p class="text-slate-400 text-xs">इस हफ़्ते की प्रोग्रेस</p>
+        <div class="flex items-baseline justify-between mt-2">
+          <h2 id="overallRate" class="text-2xl font-bold text-emerald-400">0%</h2>
+          <span id="completedCount" class="text-xs text-slate-400">0 / 0</span>
+        </div>
+        <div class="w-full bg-slate-700 h-1.5 rounded-full mt-3 overflow-hidden">
+          <div id="overallBar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl">
+        <p class="text-slate-400 text-xs">मासिक सफलता दर</p>
+        <div class="flex items-baseline justify-between mt-2">
+          <h2 id="monthlyRate" class="text-2xl font-bold text-teal-400">0%</h2>
+          <span id="monthlyCount" class="text-xs text-slate-400">इस महीने</span>
+        </div>
+        <div class="w-full bg-slate-700 h-1.5 rounded-full mt-3 overflow-hidden">
+          <div id="monthlyBar" class="bg-teal-500 h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl">
+        <p class="text-slate-400 text-xs">सबसे लंबी स्ट्रीक</p>
+        <div class="flex items-baseline justify-between mt-2">
+          <h2 id="bestStreak" class="text-2xl font-bold text-amber-400">0 दिन 🔥</h2>
+          <span id="bestHabitName" class="text-xs text-slate-400 truncate max-w-[90px]">-</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-3">लगातार सक्रिय दिन</p>
+      </div>
+
+      <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl">
+        <p class="text-slate-400 text-xs">आज के मुख्य लक्ष्य</p>
+        <div class="flex items-baseline justify-between mt-2">
+          <h2 id="goalsStatus" class="text-2xl font-bold text-sky-400">0 / 0</h2>
+          <span class="text-xs text-slate-400">दैनिक कार्य</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-3">चेकलिस्ट से पूरे करें</p>
+      </div>
+
+      <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl">
+        <p class="text-slate-400 text-xs">आज का फ़ोकस (Pomodoro)</p>
+        <div class="flex items-baseline justify-between mt-2">
+          <h2 id="pomodoroStat" class="text-2xl font-bold text-rose-400">0 सेशन 🍅</h2>
+          <span id="pomodoroMinutes" class="text-xs text-slate-400">0 मिनट</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-3">आज की कुल एकाग्रता</p>
+      </div>
+    </div>
+
+    <!-- Pomodoro Timer + Daily Quick Notes -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-lg flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                <span>⏱️</span> पोमोडोरो फ़ोकस टाइमर
+              </h3>
+              <p class="text-xs text-slate-400">पढ़ाई और ज़रूरी काम के दौरान बिना भटकाव के फ़ोकस करें</p>
+            </div>
+            <span id="timerModeBadge" class="text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 px-3 py-1 rounded-full">
+              फ़ोकस मोड (25m)
+            </span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 bg-slate-900 p-1.5 rounded-xl border border-slate-700 mb-6">
+            <button onclick="setTimerMode('focus', 25, 'फ़ोकस मोड (25m)')" id="btnModeFocus"
+              class="py-2 text-xs sm:text-sm font-medium rounded-lg bg-rose-600 text-white transition">
+              🎯 फ़ोकस (25 मि.)
+            </button>
+            <button onclick="setTimerMode('short', 5, 'छोटा ब्रेक (5m)')" id="btnModeShort"
+              class="py-2 text-xs sm:text-sm font-medium rounded-lg text-slate-400 hover:text-white transition">
+              ☕ छोटा ब्रेक (5 मि.)
+            </button>
+            <button onclick="setTimerMode('long', 15, 'लंबा ब्रेक (15m)')" id="btnModeLong"
+              class="py-2 text-xs sm:text-sm font-medium rounded-lg text-slate-400 hover:text-white transition">
+              🌿 लंबा ब्रेक (15 मि.)
+            </button>
+          </div>
+
+          <div class="text-center my-6">
+            <div id="timerDisplay" class="timer-display text-6xl sm:text-7xl font-bold tracking-wider text-white">
+              25:00
+            </div>
+            <p id="timerSubtext" class="text-xs text-slate-400 mt-2">शुरू करने के लिए नीचे 'प्रारंभ करें' दबाएं</p>
+          </div>
+
+          <div class="flex justify-center gap-3">
+            <button id="startPauseBtn" onclick="toggleTimer()" 
+              class="px-8 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl transition shadow-lg shadow-emerald-500/20">
+              ▶ प्रारंभ करें
+            </button>
+            <button onclick="resetTimer()" 
+              class="px-5 py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-xl transition">
+              ↺ रीसेट
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-700/60 flex justify-between items-center text-xs text-slate-400">
+          <span>आज पूरे किए गए फ़ोकस सेशन: <strong id="todayPomodoroCount" class="text-rose-400">0</strong></span>
+          <button onclick="resetPomodoroCount()" class="text-slate-400 hover:text-rose-400 transition">काउंटर रीसेट करें</button>
+        </div>
+      </div>
+
+      <!-- Daily Quick Notes -->
+      <div class="bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-lg flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center mb-3">
+            <div>
+              <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                <span>📝</span> दैनिक नोट्स और विचार (Quick Notes)
+              </h3>
+              <p class="text-xs text-slate-400">पढ़ाई के मुख्य पॉइंट्स, मार्केट लेवल्स या ज़रूरी आइडिया यहाँ लिखें</p>
+            </div>
+            <span id="notesCountBadge" class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-full">
+              0 नोट्स
+            </span>
+          </div>
+
+          <form onsubmit="addNote(event)" class="space-y-3 mb-4">
+            <textarea id="noteInput" rows="2" placeholder="आज का कोई महत्वपूर्ण नोट, रिवीजन पॉइंट या रिमाइंडर लिखें..." required
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none"></textarea>
+            <div class="flex justify-between items-center">
+              <select id="noteTag" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-2 focus:outline-none">
+                <option value="📚 पढ़ाई">📚 पढ़ाई</option>
+                <option value="📊 मार्केट">📊 मार्केट</option>
+                <option value="💡 आइडिया">💡 आइडिया</option>
+                <option value="🌱 सामान्य">🌱 सामान्य</option>
+              </select>
+              <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-4 py-2 rounded-xl text-sm transition">
+                + नोट सेव करें
+              </button>
+            </div>
+          </form>
+
+          <div id="notesList" class="space-y-2.5 max-h-48 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-700/60 flex justify-between items-center text-xs text-slate-400">
+          <span>सभी नोट्स ब्राउज़र में सुरक्षित रहते हैं</span>
+          <button onclick="clearAllNotes()" class="text-rose-400 hover:underline">सभी नोट्स साफ़ करें</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weekly Chart + Daily Goals -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="text-lg font-semibold text-white">📈 साप्ताहिक स्ट्रीक और प्रोग्रेस चार्ट</h3>
+            <p class="text-xs text-slate-400">वर्तमान सप्ताह की दैनिक सफलता दर</p>
+          </div>
+          <span class="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/30">
+            लाइव चार्ट
+          </span>
+        </div>
+        <div class="h-64">
+          <canvas id="streakChart"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-lg flex flex-col justify-between">
+        <div>
+          <h3 class="text-lg font-semibold text-white mb-1">⚡ आज के टॉप लक्ष्य</h3>
+          <p class="text-xs text-slate-400 mb-4">आज के सबसे ज़रूरी काम यहाँ जोड़ें</p>
+          
+          <form onsubmit="addGoal(event)" class="flex gap-2 mb-4">
+            <input type="text" id="goalInput" placeholder="नया लक्ष्य लिखें..." required
+              class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+            <button type="submit" class="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">
+              + जोड़ें
+            </button>
+          </form>
+
+          <ul id="goalsList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></ul>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-700/60 flex justify-between items-center text-xs text-slate-400">
+          <span>पूरा होने पर टिक करें</span>
+          <button onclick="clearCompletedGoals()" class="text-sky-400 hover:underline">पूरे हुए हटाएं</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weekly Habit Tracker Table -->
+    <div class="bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-lg">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-white">🗓️ साप्ताहिक आदत ट्रैकर (Current Week)</h3>
+          <p class="text-xs text-slate-400">अपनी रोज़ की स्ट्रीक बनाने के लिए दिनों के बॉक्स पर क्लिक करें</p>
+        </div>
+        <form onsubmit="addHabit(event)" class="flex w-full sm:w-auto gap-2">
+          <input type="text" id="habitInput" placeholder="नई आदत जोड़ें (जैसे: 1 घंटा पढ़ाई)..." required
+            class="flex-1 sm:w-64 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+          <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap">
+            + नई आदत
+          </button>
+        </form>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr id="weekTableHead" class="border-b border-slate-700 text-slate-400 text-xs uppercase"></tr>
+          </thead>
+          <tbody id="habitsTableBody" class="divide-y divide-slate-700/60 text-sm"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Monthly Calendar View Section -->
+    <div class="bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-lg">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+            <span>📅</span> मासिक कैलेंडर हीटमैप (Monthly View)
+          </h3>
+          <p class="text-xs text-slate-400">तारीख़ पर क्लिक करके उस दिन की प्रोग्रेस अपडेट करें या किसी खास आदत को फ़िल्टर करें</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <select id="calendarHabitFilter" onchange="renderCalendar()" 
+            class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500">
+            <option value="all">सभी आदतें (कुल हीटमैप)</option>
+          </select>
+
+          <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-1">
+            <button onclick="changeMonth(-1)" class="px-3 py-1 hover:bg-slate-800 rounded-lg text-slate-300 transition">◀</button>
+            <span id="calendarMonthTitle" class="px-4 font-semibold text-sm text-white min-w-[130px] text-center">अक्टूबर 2026</span>
+            <button onclick="changeMonth(1)" class="px-3 py-1 hover:bg-slate-800 rounded-lg text-slate-300 transition">▶</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-400 mb-2">
+        <div>सोम</div><div>मंगल</div><div>बुध</div><div>गुरु</div><div>शुक्र</div><div>शनि</div><div>रवि</div>
+      </div>
+
+      <div id="calendarGrid" class="grid grid-cols-7 gap-2"></div>
+    </div>
+
+  </div>
+
+  <script>
+    const DAYS_SHORT = ['सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि', 'रवि'];
+    const MONTHS_HI = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+
+    function formatDateKey(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function getCurrentWeekDates() {
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + diffToMonday);
+      const week = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        week.push(d);
+      }
+      return week;
+    }
+
+    const currentWeekDates = getCurrentWeekDates();
+    let viewYear = new Date().getFullYear();
+    let viewMonth = new Date().getMonth();
+
+    function createInitialHistory(pattern) {
+      const records = {};
+      currentWeekDates.forEach((d, idx) => {
+        if (pattern[idx]) records[formatDateKey(d)] = true;
+      });
+      return records;
+    }
+
+    const defaultHabits = [
+      { id: 1, name: '📚 1 घंटा पढ़ाई / रिवीजन', records: createInitialHistory([true, true, true, false, false, false, false]) },
+      { id: 2, name: '📊 मार्केट और न्यूज़ एनालिसिस', records: createInitialHistory([true, true, true, true, false, false, false]) },
+      { id: 3, name: '🏃‍♂️ सुबह व्यायाम / फिटनेस', records: createInitialHistory([true, false, true, true, false, false, false]) },
+      { id: 4, name: '🌱 बागवानी / पौधों की देखभाल', records: createInitialHistory([true, true, false, true, false, false, false]) },
+      { id: 5, name: '💧 3 लीटर पानी पीना', records: createInitialHistory([true, true, true, true, false, false, false]) }
+    ];
+
+    const defaultGoals = [
+      { id: 101, text: 'अर्थशास्त्र के 1 चैप्टर के नोट्स पूरे करना', done: true },
+      { id: 102, text: 'शाम 6 बजे से पहले ज़रूरी काम निपटाना', done: false },
+      { id: 103, text: 'रात को अगले दिन की प्लानिंग करना', done: false }
+    ];
+
+    const defaultNotes = [
+      { id: 201, tag: '📚 पढ़ाई', text: 'समष्टि अर्थशास्त्र (Macroeconomics) में मौद्रिक नीति के मुख्य बिंदुओं का रिवीजन करना है।', date: 'आज, 10:30 AM' },
+      { id: 202, tag: '📊 मार्केट', text: 'प्रमुख सपोर्ट और रेजिस्टेंस लेवल्स को चार्ट पर मार्क करके ही एंट्री लेनी है।', date: 'आज, 11:45 AM' }
+    ];
+
+    let habits = JSON.parse(localStorage.getItem('my_habits_pro_v2')) || defaultHabits;
+    let goals = JSON.parse(localStorage.getItem('my_goals_pro_v2')) || defaultGoals;
+    let notes = JSON.parse(localStorage.getItem('my_notes_ult_v1')) || defaultNotes;
+    let pomodoroData = JSON.parse(localStorage.getItem('my_pomodoro_ult_v1')) || { date: formatDateKey(new Date()), sessions: 0 };
+
+    if (pomodoroData.date !== formatDateKey(new Date())) {
+      pomodoroData = { date: formatDateKey(new Date()), sessions: 0 };
+    }
+
+    let streakChartInstance = null;
+
+    function saveData() {
+      localStorage.setItem('my_habits_pro_v2', JSON.stringify(habits));
+      localStorage.setItem('my_goals_pro_v2', JSON.stringify(goals));
+      localStorage.setItem('my_notes_ult_v1', JSON.stringify(notes));
+      localStorage.setItem('my_pomodoro_ult_v1', JSON.stringify(pomodoroData));
+    }
+
+    let timerInterval = null;
+    let timerRunning = false;
+    let currentMode = 'focus';
+    let modeMinutes = 25;
+    let timeLeftSeconds = 25 * 60;
+
+    function playBeepAlert() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [0, 0.25, 0.5].forEach(delay => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, ctx.currentTime + delay);
+          gain.gain.setValueAtTime(0.25, ctx.currentTime + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.2);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + delay);
+          osc.stop(ctx.currentTime + delay + 0.2);
+        });
+      } catch (e) {}
+    }
+
+    function updateTimerDisplay() {
+      const mins = String(Math.floor(timeLeftSeconds / 60)).padStart(2, '0');
+      const secs = String(timeLeftSeconds % 60).padStart(2, '0');
+      document.getElementById('timerDisplay').textContent = `${mins}:${secs}`;
+    }
+
+    function setTimerMode(mode, minutes, labelText) {
+      pauseTimer();
+      currentMode = mode;
+      modeMinutes = minutes;
+      timeLeftSeconds = minutes * 60;
+      document.getElementById('timerModeBadge').textContent = labelText;
+      document.getElementById('timerSubtext').textContent = 'शुरू करने के लिए नीचे \'प्रारंभ करें\' दबाएं';
+      const modes = { focus: 'btnModeFocus', short: 'btnModeShort', long: 'btnModeLong' };
+      Object.keys(modes).forEach(k => {
+        const btn = document.getElementById(modes[k]);
+        btn.className = k === mode
+          ? 'py-2 text-xs sm:text-sm font-medium rounded-lg bg-rose-600 text-white transition'
+          : 'py-2 text-xs sm:text-sm font-medium rounded-lg text-slate-400 hover:text-white transition';
+      });
+      updateTimerDisplay();
+    }
+
+    function toggleTimer() {
+      if (timerRunning) pauseTimer(); else startTimer();
+    }
+
+    function startTimer() {
+      timerRunning = true;
+      const btn = document.getElementById('startPauseBtn');
+      btn.textContent = '⏸ रोकें (Pause)';
+      btn.className = 'px-8 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl transition shadow-lg shadow-amber-500/20';
+      document.getElementById('timerSubtext').textContent = currentMode === 'focus' ? 'पूरा ध्यान अपने लक्ष्य पर रखें...' : 'आराम करें और पानी पिएं...';
+
+      timerInterval = setInterval(() => {
+        if (timeLeftSeconds > 0) {
+          timeLeftSeconds--;
+          updateTimerDisplay();
+        } else {
+          clearInterval(timerInterval);
+          timerRunning = false;
+          playBeepAlert();
+          if (currentMode === 'focus') {
+            pomodoroData.sessions++;
+            saveData();
+            renderPomodoroStats();
+            document.getElementById('timerSubtext').textContent = '🎉 शानदार! एक फ़ोकस सेशन पूरा हुआ।';
+          } else {
+            document.getElementById('timerSubtext').textContent = '⏰ ब्रेक समाप्त!';
+          }
+          resetTimerButtonUI();
+          timeLeftSeconds = modeMinutes * 60;
+          updateTimerDisplay();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      resetTimerButtonUI();
+      document.getElementById('timerSubtext').textContent = 'टाइमर रुका हुआ है';
+    }
+
+    function resetTimerButtonUI() {
+      const btn = document.getElementById('startPauseBtn');
+      btn.textContent = '▶ प्रारंभ करें';
+      btn.className = 'px-8 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl transition shadow-lg shadow-emerald-500/20';
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      timeLeftSeconds = modeMinutes * 60;
+      updateTimerDisplay();
+      document.getElementById('timerSubtext').textContent = 'टाइमर रीसेट कर दिया गया है';
+    }
+
+    function resetPomodoroCount() {
+      pomodoroData.sessions = 0;
+      saveData();
+      renderPomodoroStats();
+    }
+
+    function renderPomodoroStats() {
+      const count = pomodoroData.sessions || 0;
+      document.getElementById('todayPomodoroCount').textContent = count;
+      document.getElementById('pomodoroStat').textContent = `${count} सेशन 🍅`;
+      document.getElementById('pomodoroMinutes').textContent = `${count * 25} मिनट`;
+    }
+
+    function addNote(e) {
+      e.preventDefault();
+      const input = document.getElementById('noteInput');
+      const tag = document.getElementById('noteTag').value;
+      const text = input.value.trim();
+      if (!text) return;
+      const now = new Date();
+      const dateStr = `${now.getDate()} ${MONTHS_HI[now.getMonth()]}, ${now.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' })}`;
+      notes.unshift({ id: Date.now(), tag, text, date: dateStr });
+      input.value = '';
+      saveData();
+      renderNotes();
+    }
+
+    function deleteNote(id) {
+      notes = notes.filter(n => n.id !== id);
+      saveData();
+      renderNotes();
+    }
+
+    function clearAllNotes() {
+      if (confirm('क्या आप सभी सेव किए गए नोट्स हटाना चाहते हैं?')) {
+        notes = [];
+        saveData();
+        renderNotes();
+      }
+    }
+
+    function renderNotes() {
+      const container = document.getElementById('notesList');
+      document.getElementById('notesCountBadge').textContent = `${notes.length} नोट्स`;
+      container.innerHTML = '';
+      if (notes.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">अभी कोई नोट सेव नहीं है।</p>`;
+        return;
+      }
+      notes.forEach(note => {
+        const div = document.createElement('div');
+        div.className = 'bg-slate-900/80 border border-slate-700/80 p-3 rounded-xl flex justify-between items-start gap-3';
+        div.innerHTML = `
+          <div class="space-y-1 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] bg-slate-800 border border-slate-700 text-amber-300 px-2 py-0.5 rounded-md font-medium">${note.tag}</span>
+              <span class="text-[11px] text-slate-500">${note.date}</span>
+            </div>
+            <p class="text-sm text-slate-200 leading-relaxed break-words">${note.text}</p>
+          </div>
+          <button onclick="deleteNote(${note.id})" class="text-slate-500 hover:text-rose-400 text-xs px-1.5 py-1 transition">✕</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function calculateHabitStreak(habit) {
+      let streak = 0, maxWeekStreak = 0;
+      currentWeekDates.forEach(d => {
+        const key = formatDateKey(d);
+        if (habit.records && habit.records[key]) {
+          streak++;
+          if (streak > maxWeekStreak) maxWeekStreak = streak;
+        } else {
+          streak = 0;
+        }
+      });
+      return maxWeekStreak;
+    }
+
+    function toggleHabitDate(habitId, dateKey) {
+      const habit = habits.find(h => h.id === habitId);
+      if (habit) {
+        if (!habit.records) habit.records = {};
+        if (habit.records[dateKey]) delete habit.records[dateKey];
+        else habit.records[dateKey] = true;
+        saveData();
+        renderAll();
+      }
+    }
+
+    function addHabit(e) {
+      e.preventDefault();
+      const input = document.getElementById('habitInput');
+      const name = input.value.trim();
+      if (!name) return;
+      habits.push({ id: Date.now(), name, records: {} });
+      input.value = '';
+      saveData();
+      updateHabitFilterDropdown();
+      renderAll();
+    }
+
+    function deleteHabit(id) {
+      habits = habits.filter(h => h.id !== id);
+      saveData();
+      updateHabitFilterDropdown();
+      renderAll();
+    }
+
+    function resetCurrentWeek() {
+      if (confirm('क्या आप इस हफ़्ते के सभी टिक रीसेट करना चाहते हैं?')) {
+        habits.forEach(h => {
+          currentWeekDates.forEach(d => {
+            const key = formatDateKey(d);
+            if (h.records) delete h.records[key];
+          });
+        });
+        saveData();
+        renderAll();
+      }
+    }
+
+    function addGoal(e) {
+      e.preventDefault();
+      const input = document.getElementById('goalInput');
+      const text = input.value.trim();
+      if (!text) return;
+      goals.push({ id: Date.now(), text, done: false });
+      input.value = '';
+      saveData();
+      renderAll();
+    }
+
+    function toggleGoal(id) {
+      const goal = goals.find(g => g.id === id);
+      if (goal) {
+        goal.done = !goal.done;
+        saveData();
+        renderAll();
+      }
+    }
+
+    function clearCompletedGoals() {
+      goals = goals.filter(g => !g.done);
+      saveData();
+      renderAll();
+    }
+
+    function updateHabitFilterDropdown() {
+      const select = document.getElementById('calendarHabitFilter');
+      const currentVal = select.value;
+      select.innerHTML = `<option value="all">सभी आदतें (कुल हीटमैप)</option>`;
+      habits.forEach(h => {
+        const opt = document.createElement('option');
+        opt.value = h.id;
+        opt.textContent = h.name;
+        select.appendChild(opt);
+      });
+      if ([...select.options].some(o => o.value === currentVal)) select.value = currentVal;
+    }
+
+    function renderHabitsTable() {
+      const thead = document.getElementById('weekTableHead');
+      const todayKey = formatDateKey(new Date());
+      let headHtml = `<th class="py-3 px-4 min-w-[180px]">आदत (Habit)</th>`;
+      currentWeekDates.forEach((d, idx) => {
+        const key = formatDateKey(d);
+        const isToday = key === todayKey;
+        headHtml += `
+          <th class="py-2 px-2 text-center ${isToday ? 'text-emerald-400 font-bold' : ''}">
+            <div>${DAYS_SHORT[idx]}</div>
+            <div class="text-[11px] opacity-75">${d.getDate()}/${d.getMonth() + 1}</div>
+          </th>
+        `;
+      });
+      headHtml += `<th class="py-3 px-4 text-center">स्ट्रीक</th><th class="py-3 px-4 text-right">प्रोग्रेस</th><th class="py-3 px-2 text-center">हटाएं</th>`;
+      thead.innerHTML = headHtml;
+
+      const tbody = document.getElementById('habitsTableBody');
+      tbody.innerHTML = '';
+
+      habits.forEach(habit => {
+        let completedDays = 0, daysHtml = '';
+        currentWeekDates.forEach(d => {
+          const key = formatDateKey(d);
+          const isDone = !!(habit.records && habit.records[key]);
+          if (isDone) completedDays++;
+          daysHtml += `
+            <td class="py-3 px-2 text-center">
+              <button onclick="toggleHabitDate(${habit.id}, '${key}')" 
+                class="day-btn w-9 h-9 rounded-xl font-bold text-sm inline-flex items-center justify-center border ${
+                  isDone ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20' : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'
+                }">${isDone ? '✓' : ''}</button>
+            </td>
+          `;
+        });
+        const progressPercent = Math.round((completedDays / 7) * 100);
+        const streak = calculateHabitStreak(habit);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition';
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-medium text-white">${habit.name}</td>
+          ${daysHtml}
+          <td class="py-3 px-4 text-center">
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+              streak >= 3 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-700 text-slate-300'
+            }">🔥 ${streak} दिन</span>
+          </td>
+          <td class="py-3 px-4 text-right">
+            <div class="flex items-center justify-end gap-2">
+              <div class="w-16 bg-slate-700 h-2 rounded-full overflow-hidden">
+                <div class="bg-emerald-400 h-full" style="width: ${progressPercent}%"></div>
+              </div>
+              <span class="text-xs text-slate-300 w-9">${progressPercent}%</span>
+            </div>
+          </td>
+          <td class="py-3 px-2 text-center">
+            <button onclick="deleteHabit(${habit.id})" class="text-slate-500 hover:text-rose-400 transition px-2 py-1">✕</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function changeMonth(offset) {
+      viewMonth += offset;
+      if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+      else if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+      renderAll();
+    }
+
+    function handleCalendarDateClick(dateKey) {
+      if (habits.length === 0) return;
+      const filterVal = document.getElementById('calendarHabitFilter').value;
+      if (filterVal !== 'all') {
+        toggleHabitDate(Number(filterVal), dateKey);
+      } else {
+        const allCompleted = habits.every(h => h.records && h.records[dateKey]);
+        habits.forEach(h => {
+          if (!h.records) h.records = {};
+          if (allCompleted) delete h.records[dateKey];
+          else h.records[dateKey] = true;
+        });
+        saveData();
+        renderAll();
+      }
+    }
+
+    function renderCalendar() {
+      document.getElementById('calendarMonthTitle').textContent = `${MONTHS_HI[viewMonth]} ${viewYear}`;
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+      const filterVal = document.getElementById('calendarHabitFilter').value;
+      const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
+      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      const startDay = firstDayOfMonth.getDay();
+      const emptySlots = startDay === 0 ? 6 : startDay - 1;
+
+      for (let i = 0; i < emptySlots; i++) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'h-16 rounded-xl bg-slate-900/30 border border-slate-800/40';
+        grid.appendChild(emptyDiv);
+      }
+
+      const todayKey = formatDateKey(new Date());
+      let monthPossible = 0, monthCompleted = 0;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dObj = new Date(viewYear, viewMonth, day);
+        const dateKey = formatDateKey(dObj);
+        const isToday = dateKey === todayKey;
+        let doneCount = 0, totalCount = habits.length;
+
+        if (filterVal === 'all') {
+          habits.forEach(h => { if (h.records && h.records[dateKey]) doneCount++; });
+        } else {
+          totalCount = 1;
+          const targetHabit = habits.find(h => h.id === Number(filterVal));
+          if (targetHabit && targetHabit.records && targetHabit.records[dateKey]) doneCount = 1;
+        }
+
+        habits.forEach(h => {
+          monthPossible++;
+          if (h.records && h.records[dateKey]) monthCompleted++;
+        });
+
+        const ratio = totalCount > 0 ? doneCount / totalCount : 0;
+        let bgClass = 'bg-slate-900 border-slate-700/80 text-slate-300 hover:border-slate-500';
+        if (ratio > 0 && ratio <= 0.4) bgClass = 'bg-emerald-950/90 border-emerald-700/60 text-emerald-200';
+        else if (ratio > 0.4 && ratio <= 0.8) bgClass = 'bg-emerald-600/80 border-emerald-400 text-white';
+        else if (ratio > 0.8) bgClass = 'bg-emerald-400 border-emerald-300 text-slate-950 font-bold shadow-md shadow-emerald-500/20';
+
+        const cell = document.createElement('button');
+        cell.onclick = () => handleCalendarDateClick(dateKey);
+        cell.className = `cal-cell h-16 p-2 rounded-xl border flex flex-col justify-between items-start text-left ${bgClass} ${isToday ? 'ring-2 ring-sky-400' : ''}`;
+        cell.innerHTML = `
+          <div class="flex justify-between w-full items-center">
+            <span class="text-xs sm:text-sm">${day}</span>
+            ${isToday ? '<span class="text-[10px] bg-sky-500 text-white px-1.5 py-0.2 rounded">आज</span>' : ''}
+          </div>
+          <div class="text-[11px] opacity-85 self-end">${doneCount}/${totalCount} ✓</div>
+        `;
+        grid.appendChild(cell);
+      }
+
+      const monthPercent = monthPossible > 0 ? Math.round((monthCompleted / monthPossible) * 100) : 0;
+      document.getElementById('monthlyRate').textContent = `${monthPercent}%`;
+      document.getElementById('monthlyCount').textContent = `${MONTHS_HI[viewMonth]} (${monthCompleted}/${monthPossible})`;
+      document.getElementById('monthlyBar').style.width = `${monthPercent}%`;
+    }
+
+    function renderGoals() {
+      const list = document.getElementById('goalsList');
+      list.innerHTML = '';
+      goals.forEach(goal => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between bg-slate-900/70 border border-slate-700/80 px-3 py-2.5 rounded-xl';
+        li.innerHTML = `
+          <label class="flex items-center gap-3 cursor-pointer flex-1">
+            <input type="checkbox" ${goal.done ? 'checked' : ''} onchange="toggleGoal(${goal.id})" class="w-4 h-4 accent-sky-500 rounded cursor-pointer">
+            <span class="text-sm ${goal.done ? 'line-through text-slate-500' : 'text-slate-200'}">${goal.text}</span>
+          </label>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    function updateSummaryAndChart() {
+      const totalPossible = habits.length * 7;
+      let totalCompleted = 0, bestStreakVal = 0, bestHabitTitle = '-';
+      const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
+
+      habits.forEach(h => {
+        const st = calculateHabitStreak(h);
+        if (st > bestStreakVal) { bestStreakVal = st; bestHabitTitle = h.name; }
+        currentWeekDates.forEach((d, idx) => {
+          const key = formatDateKey(d);
+          if (h.records && h.records[key]) { totalCompleted++; dailyCounts[idx]++; }
+        });
+      });
+
+      const overallPercent = totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0;
+      document.getElementById('overallRate').textContent = `${overallPercent}%`;
+      document.getElementById('completedCount').textContent = `${totalCompleted} / ${totalPossible}`;
+      document.getElementById('overallBar').style.width = `${overallPercent}%`;
+      document.getElementById('bestStreak').textContent = `${bestStreakVal} दिन 🔥`;
+      document.getElementById('bestHabitName').textContent = bestHabitTitle;
+
+      const doneGoals = goals.filter(g => g.done).length;
+      document.getElementById('goalsStatus').textContent = `${doneGoals} / ${goals.length}`;
+
+      const dailyPercentages = dailyCounts.map(count => habits.length > 0 ? Math.round((count / habits.length) * 100) : 0);
+      renderChart(dailyPercentages);
+    }
+
+    function renderChart(dailyPercentages) {
+      const ctx = document.getElementById('streakChart').getContext('2d');
+      const labelsWithDates = currentWeekDates.map((d, i) => `${DAYS_SHORT[i]} (${d.getDate()})`);
+      if (streakChartInstance) {
+        streakChartInstance.data.labels = labelsWithDates;
+        streakChartInstance.data.datasets[0].data = dailyPercentages;
+        streakChartInstance.update();
+        return;
+      }
+      streakChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labelsWithDates,
+          datasets: [{
+            label: 'दैनिक सफलता दर (%)',
+            data: dailyPercentages,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            borderWidth: 3,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#0f172a',
+            pointBorderWidth: 2,
+            pointRadius: 6,
+            fill: true,
+            tension: 0.35
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, max: 100, grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8', callback: v => v + '%' } },
+            x: { grid: { display: false }, ticks: { color: '#cbd5e1', font: { weight: '600' } } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function exportToCSV() {
+      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      const dateHeaders = [], dateKeys = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(viewYear, viewMonth, d);
+        dateKeys.push(formatDateKey(dateObj));
+        dateHeaders.push(`${d} ${MONTHS_HI[viewMonth]}`);
+      }
+      let csvRows = [];
+      csvRows.push([`मासिक आदत और प्रोडक्टिविटी रिपोर्ट - ${MONTHS_HI[viewMonth]} ${viewYear}`]);
+      csvRows.push(['आज के पूरे किए गए पोमोडोरो सेशन', `${pomodoroData.sessions} सेशन (${pomodoroData.sessions * 25} मिनट)`]);
+      csvRows.push([]);
+      csvRows.push(['आदत का नाम', ...dateHeaders, 'कुल पूर्ण दिन', 'मासिक प्रतिशत (%)', 'सक्रिय स्ट्रीक']);
+      habits.forEach(h => {
+        let doneCount = 0;
+        const rowStatuses = dateKeys.map(k => {
+          const isDone = !!(h.records && h.records[k]);
+          if (isDone) doneCount++;
+          return isDone ? 'हाँ (1)' : 'नहीं (0)';
+        });
+        const pct = Math.round((doneCount / daysInMonth) * 100);
+        const st = calculateHabitStreak(h);
+        csvRows.push([`"${h.name.replace(/"/g, '""')}"`, ...rowStatuses, doneCount, `${pct}%`, `${st} दिन`]);
+      });
+      csvRows.push([]);
+      csvRows.push(['आज के दैनिक लक्ष्य (Daily Goals)', 'स्थिति']);
+      goals.forEach(g => csvRows.push([`"${g.text.replace(/"/g, '""')}"`, g.done ? 'पूर्ण' : 'बाकी']));
+      csvRows.push([]);
+      csvRows.push(['दैनिक नोट्स (श्रेणी)', 'नोट का विवरण', 'समय और तारीख़']);
+      notes.forEach(n => csvRows.push([`"${n.tag}"`, `"${n.text.replace(/"/g, '""')}"`, `"${n.date}"`]));
+
+      const csvString = '\uFEFF' + csvRows.map(r => r.join(',')).join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Productivity_Report_${MONTHS_HI[viewMonth]}_${viewYear}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function renderAll() {
+      renderHabitsTable();
+      renderGoals();
+      renderNotes();
+      renderPomodoroStats();
+      updateSummaryAndChart();
+      renderCalendar();
+    }
+
+    updateHabitFilterDropdown();
+    updateTimerDisplay();
+    renderAll();
+  </script>
+</body>
+</html>
